@@ -275,12 +275,18 @@ public class BuildHttpServer {
             try {
                 broadcast(s, "Старт генерации…");
                 ServerLevel level = s.overworld();
+                // Persist a single world-wide geographic origin: newly selected
+                // coordinates must not be mapped back on top of the old area.
+                com.cartopia.grow.GeoWorldRegistry.prepare(s, data);
+                Files.writeString(coordsPath, GSON.toJson(data), StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                 CartopiaPipeline.run(
                     level,
                     coordsPath.toFile(),
                     demPath.toFile(),
                     lcOkFinal ? olmPath.toFile() : null
                 );
+                com.cartopia.grow.GeoWorldRegistry.complete(s, data);
                 broadcast(s, "Generation finished. Package: " + packDir.getFileName());
                 trimPacksDir(MAX_PACKS); // чистка старых пакетов
             } catch (Exception e) {
