@@ -51,6 +51,24 @@ public class BuildHttpServer {
             // Новый «полный» сценарий как в Node: /player и /save-coords
             httpServer.createContext("/player", BuildHttpServer::handlePlayer);
             httpServer.createContext("/save-coords", BuildHttpServer::handleSaveCoords);
+            // Map overlay: show each region that has been successfully generated.
+            httpServer.createContext("/areas", ex -> {
+                if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                    sendText(ex, 405, "Method not allowed", "text/plain");
+                    return;
+                }
+                MinecraftServer active = ServerLifecycleHooks.getCurrentServer();
+                if (active == null) {
+                    sendText(ex, 503, "Server not ready", "text/plain");
+                    return;
+                }
+                try {
+                    JsonObject snapshot = com.cartopia.grow.GeoWorldRegistry.snapshot(active);
+                    sendText(ex, 200, snapshot.toString(), "application/json");
+                } catch (IOException err) {
+                    sendText(ex, 500, "Failed to read saved areas", "text/plain");
+                }
+            });
 
             // /health — UP, когда сервер Minecraft поднят
             httpServer.createContext("/health", ex -> {
