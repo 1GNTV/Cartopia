@@ -122,6 +122,16 @@ public final class GeoWorldRegistry {
         return coords;
     }
 
+    /** A read-only snapshot used by the web map to display generated zones. */
+    public static synchronized JsonObject snapshot(MinecraftServer server) throws IOException {
+        JsonObject root = load(server);
+        if (root == null) {
+            root = new JsonObject();
+            root.add("areas", new JsonArray());
+        }
+        return root.deepCopy();
+    }
+
     /**
      * Once a generation has fully succeeded, register the covered area to
      * prevent accidental later overwrites. Does not mark failed generations.
