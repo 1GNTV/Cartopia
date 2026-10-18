@@ -305,11 +305,16 @@ public class SurfaceGenerator {
         // бывший fillMissingHeights — версия для массива (с теми же правилами)
         fillMissingHeightsArray(elevM);
 
+        // Avoid a different ground-height origin on every selected area.
+        // The first selection defines a reference altitude for the entire world.
+        final double referenceElevation =
+                com.cartopia.grow.GeoWorldRegistry.elevationDatum(level.getServer(), minElevation);
+
         int[] terrainY = new int[totalCells];
         for (int x=minX; x<=maxX; x++) {
             for (int z=minZ; z<=maxZ; z++) {
                 int i = idx(x,z);
-                int y = Y_BASE + (int)Math.round(elevM[i] - minElevation);
+                int y = Y_BASE + (int)Math.round(elevM[i] - referenceElevation);
                 terrainY[i] = y;
             }
         }

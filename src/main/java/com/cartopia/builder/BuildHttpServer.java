@@ -51,6 +51,24 @@ public class BuildHttpServer {
             // Новый «полный» сценарий как в Node: /player и /save-coords
             httpServer.createContext("/player", BuildHttpServer::handlePlayer);
             httpServer.createContext("/save-coords", BuildHttpServer::handleSaveCoords);
+            // Map overlay: show each region that has been successfully generated.
+            httpServer.createContext("/areas", ex -> {
+                if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                    sendText(ex, 405, "Method not allowed", "text/plain");
+                    return;
+                }
+                MinecraftServer active = ServerLifecycleHooks.getCurrentServer();
+                if (active == null) {
+                    sendText(ex, 503, "Server not ready", "text/plain");
+                    return;
+                }
+                try {
+                    JsonObject snapshot = com.cartopia.grow.GeoWorldRegistry.snapshot(active);
+                    sendText(ex, 200, snapshot.toString(), "application/json");
+                } catch (IOException err) {
+                    sendText(ex, 500, "Failed to read saved areas", "text/plain");
+                }
+            });
 
             // /health — UP, когда сервер Minecraft поднят
             httpServer.createContext("/health", ex -> {
@@ -226,6 +244,11 @@ public class BuildHttpServer {
         Path demPath    = packDir.resolve("dem.tif");
         Path olmPath    = packDir.resolve("olm_landcover.tif");
 
+        // France-HD: enrich OSM building polygons and heights with measured
+        // IGN BD TOPO data. Network request happens on the HTTP worker, not
+        // on Minecraft's server tick thread. Falls back safely when offline.
+        com.cartopia.france.FranceBuildingEnricher.tryEnrich(data);
+
         // данные в coords.json (+ player, + служебные поля)
         if (lastPlayerCoords != null) data.add("player", lastPlayerCoords.deepCopy());
         JsonObject lcBounds = new JsonObject();
@@ -275,12 +298,18 @@ public class BuildHttpServer {
             try {
                 broadcast(s, "Старт генерации…");
                 ServerLevel level = s.overworld();
+                // Persist a single world-wide geographic origin: newly selected
+                // coordinates must not be mapped back on top of the old area.
+                com.cartopia.grow.GeoWorldRegistry.prepare(s, data);
+                Files.writeString(coordsPath, GSON.toJson(data), StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                 CartopiaPipeline.run(
                     level,
                     coordsPath.toFile(),
                     demPath.toFile(),
                     lcOkFinal ? olmPath.toFile() : null
                 );
+                com.cartopia.grow.GeoWorldRegistry.complete(s, data);
                 broadcast(s, "Generation finished. Package: " + packDir.getFileName());
                 trimPacksDir(MAX_PACKS); // чистка старых пакетов
             } catch (Exception e) {

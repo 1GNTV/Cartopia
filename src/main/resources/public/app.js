@@ -52,6 +52,41 @@ setTimeout(() => {
   document.querySelectorAll('.leaflet-bottom.leaflet-right, .leaflet-control-attribution, .leaflet-control-container').forEach(el => el.remove());
 }, 500);
 
+// Generated districts overlay. This deliberately leaves the existing selection
+// interface unchanged: the player can see which zones are already protected.
+const generatedAreasLayer = L.layerGroup().addTo(map);
+async function refreshGeneratedAreas() {
+  try {
+    const response = await fetch('/areas', { cache: 'no-store' });
+    if (!response.ok) return;
+    const registry = await response.json();
+    generatedAreasLayer.clearLayers();
+    for (const [index, zone] of (registry.areas || []).entries()) {
+      if (!zone.center) continue;
+      const lat = Number(zone.center.lat);
+      const lng = Number(zone.center.lng);
+      const size = Number(zone.maxX) - Number(zone.minX);
+      if (![lat, lng, size].every(Number.isFinite)) continue;
+      const latDelta = (size / 2) / 111320;
+      const lonDelta = (size / 2) / (111320 * Math.max(0.05, Math.cos(lat * Math.PI / 180)));
+      const rect = L.rectangle(
+        [[lat - latDelta, lng - lonDelta], [lat + latDelta, lng + lonDelta]],
+        { color: '#24aeb0', weight: 2, opacity: 0.8, fillOpacity: 0.035, interactive: true }
+      ).addTo(generatedAreasLayer);
+      rect.bindPopup('Cartopia generated district #' + (index + 1));
+      const marker = L.circleMarker([lat, lng], {
+        radius: 5, color: '#24aeb0', weight: 2, fillColor: '#fff', fillOpacity: 1
+      }).addTo(generatedAreasLayer);
+      marker.bindTooltip('Generated district #' + (index + 1));
+      marker.on('click', () => map.setView([lat, lng], Math.max(14, map.getZoom())));
+    }
+  } catch (err) {
+    console.debug('Cartopia: generated zones temporarily unavailable', err);
+  }
+}
+refreshGeneratedAreas();
+setInterval(refreshGeneratedAreas, 15000);
+
 /* ===================== DOM ===================== */
 const box = document.getElementById('selectionBox');
 const controls = document.getElementById('controls');
