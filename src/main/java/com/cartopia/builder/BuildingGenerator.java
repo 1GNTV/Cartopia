@@ -3367,6 +3367,13 @@ public class BuildingGenerator {
         Double totalH = parseMeters(optString(tags, "height"));
         if (totalH == null) totalH = parseMeters(optString(tags, "building:height")); // синоним
 
+        // IGN measured height must take priority over inferred 4m/floor.
+        // Floor counts still drive the placement of windows and floors.
+        if (totalH != null && totalH > 0 &&
+                "IGN BD TOPO".equals(optString(tags, "cartopia:source:height"))) {
+            return Math.max(1, (int)Math.round(totalH) - parseRoofHeightBlocks(tags));
+        }
+
         if (levels != null && levels > 0) {
             // Если этажей <10 и метры как минимум в 2 раза больше, чем этажи*4 — слушаемся метров
             if (totalH != null && totalH > 0 && levels < 10) {
@@ -3434,6 +3441,12 @@ public class BuildingGenerator {
 
         Double totalMeters = parseMeters(optString(tags, "height"));
         if (totalMeters == null) totalMeters = parseMeters(optString(tags, "building:height")); // синоним
+
+        // Respect measured IGN roof height even when floor count is known.
+        if (totalMeters != null && totalMeters > 0 &&
+                "IGN BD TOPO".equals(optString(tags, "cartopia:source:height"))) {
+            return Math.max(1, (int)Math.round(totalMeters));
+        }
 
         if (levels != null && levels > 0) {
             // Если этажей <10 и метры как минимум в 2 раза больше, чем этажи*4 — слушаемся метров
