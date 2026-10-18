@@ -1,9 +1,10 @@
-name: Experimental Cartopia build
+name: Cartopia France-HD build
 
 on:
   push:
     branches:
       - feature/multizone-streaming
+      - feature/france-hd-buildings
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: cartopia-multizone-mc1.20.1-forge47
+          name: cartopia-france-hd-mc1.20.1-forge47
           path: build/libs/*.jar
           if-no-files-found: error
