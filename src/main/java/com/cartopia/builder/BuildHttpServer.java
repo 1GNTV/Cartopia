@@ -244,6 +244,11 @@ public class BuildHttpServer {
         Path demPath    = packDir.resolve("dem.tif");
         Path olmPath    = packDir.resolve("olm_landcover.tif");
 
+        // France-HD: enrich OSM building polygons and heights with measured
+        // IGN BD TOPO data. Network request happens on the HTTP worker, not
+        // on Minecraft's server tick thread. Falls back safely when offline.
+        com.cartopia.france.FranceBuildingEnricher.tryEnrich(data);
+
         // данные в coords.json (+ player, + служебные поля)
         if (lastPlayerCoords != null) data.add("player", lastPlayerCoords.deepCopy());
         JsonObject lcBounds = new JsonObject();
